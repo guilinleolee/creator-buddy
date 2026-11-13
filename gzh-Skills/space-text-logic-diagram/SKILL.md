@@ -5,6 +5,7 @@ license: MIT
 metadata:
   version: "1.1"
   author: Text Logic Diagram Skill
+triggers: ["用户说「公众号配图版」时", "用户说「段落拆成逻辑关系图」时", "SVG", "HTML"]
 ---
 
 # 文本逻辑关系图

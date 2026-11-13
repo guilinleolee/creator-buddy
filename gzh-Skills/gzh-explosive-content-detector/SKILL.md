@@ -5,6 +5,7 @@ dependency:
   python:
     - requests>=2.28.0
   system:
+triggers: ["用户说「全网持续收录每日爆款文章」时", "用户说「收录依据」时", "gzh explosive content detector"]
 ---
 
 # 公众号爆款文章查询

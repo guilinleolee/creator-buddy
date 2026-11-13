@@ -1,6 +1,7 @@
 ---
 name: space-wechat-layout
 description: 微信公众号排版。Use when the user asks to turn an article, Markdown draft, longform post, essay, newsletter, review, or Chinese article into a WeChat Official Account-ready HTML layout with local preview, selectable Claude/OpenAI/Google-inspired styles, and a button to copy rich HTML for pasting into the WeChat editor.
+triggers: ["用户说「微信公众号排版」时", "Markdown", "space wechat layout"]
 ---
 
 # 微信公众号排版

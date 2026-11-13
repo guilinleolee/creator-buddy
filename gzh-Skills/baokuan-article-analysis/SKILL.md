@@ -1,6 +1,7 @@
 ---
 name: baokuan-article-analysis
 description: Fetch and analyze WeChat Official Account hot articles / 公众号爆款文章 by sector or keywords. Use when the user asks for 爆款文章分析, 赛道爆款, 公众号爆款数据, reading counts, likes, shares, comments, title patterns, writing style, 爆款原因分析, or writing references for content creation.
+triggers: ["用户说「公众号爆款文章」时", "WeChat", "baokuan article analysis"]
 ---
 
 # 爆款文章分析

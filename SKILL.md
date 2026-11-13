@@ -1,26 +1,29 @@
 ---
 name: creator-buddy
-description: 创作者全域内容搜索总控 Skill。用户发送平台名+关键词、平台链接，或要求分析博主、文章风格、热度、点赞、收藏、评论、爆款原因、选题方向时触发；根据平台和任务自动路由到小红书热门笔记、全域内容搜索、公众号爆款搜索、公众号赛道分析等分支 Skill。
+description: >
+  创作者全域内容搜索总控 Skill。用户发送平台名+关键词、平台链接，或要求分析博主、文章风格、热度、点赞、收藏、评论、爆款原因、选题方向时触发；根据平台和任务自动路由到小红书热门笔记、全域内容搜索、公众号爆款搜索、公众号赛道分析等分支 Skill。
 license: MIT
-metadata:
-  type: orchestrator
-  runtime: "agent-skills"
-  version: "1.0.0"
-  routes:
-    - gzh-Skills/xhs-hotnotes
-    - gzh-Skills/global-content-search
-    - gzh-Skills/gzh-explosive-content-detector
-    - gzh-Skills/baokuan-article-analysis
-  tags:
-    - creator
-    - content-search
-    - xiaohongshu
-    - bilibili
-    - douyin
-    - wechat
-    - viral-content
-    - creator-analytics
+triggers: ["creator buddy", "用户说「创作者全域内容搜索总控」时"]
+version: v3.0
 ---
+
+# creator-buddy
+
+## L0: 一句话描述 (<=15字)
+当用户输入以下任一形式时，应触发本 Skill：
+
+## L1: 使用场景 (50-100字)
+
+**适用场景**：
+- 主要使用场景描述
+
+**触发关键词**：`/creator-buddy`
+
+## L2: 详细文档
+
+### 完整功能说明
+
+创作者全域内容搜索总控 Skill。用户发送平台名+关键词、平台链接，或要求分析博主、文章风格、热度、点赞、收藏、评论、爆款原因、选题方向时触发；根据平台和任务自动路由到小红书热门笔记、全域内容搜索、公众号爆款搜索、公众号赛道分析等分支 Skill。
 
 # Creator Buddy 总控 Skill
 
@@ -233,3 +236,8 @@ python3 gzh-Skills/baokuan-article-analysis/scripts/daily_sector_trends.py \
 - 抖音不是内置后端，必须依赖 `DOUYIN_COMMAND` 或未来 Agent Reach 支持。
 - Guaikei API 只作为小红书兜底，不替代 Agent Reach 的优先级。
 - 热度是传播信号，不等于内容质量，也不等于适合用户账号定位。
+
+---
+
+*此文档已自动升级到 V3 格式（L0->L1->L2 三级渐进披露）*
+*升级日期: 2026-09-07*

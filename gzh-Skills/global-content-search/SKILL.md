@@ -28,6 +28,7 @@ metadata:
     - "搜索B站'AI编程': node src/xiaohongshu/search-cli.js --platform bilibili --keyword 'AI编程' --limit 10"
     - "分析小红书笔记详情及评论: node src/xiaohongshu/detail-cli.js --platform xiaohongshu --url 'https://www.xiaohongshu.com/explore/xxx?xsec_token=yyy' --limit 100"
     - "监控小红书博主作品: node src/xiaohongshu/post-cli.js --platform xiaohongshu --url 'https://www.xiaohongshu.com/user/profile/xxx?xsec_token=yyy' --limit 20"
+triggers: ["用户说「全域内容搜索」时", "用户说「抖音关键词搜索」时", "OpenCLI", "global content search"]
 ---
 
 # 全域内容搜索
