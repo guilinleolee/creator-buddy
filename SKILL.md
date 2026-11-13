@@ -1,7 +1,7 @@
 ---
 name: creator-buddy
 description: >
-  创作者全域内容搜索总控 Skill。用户发送平台名+关键词、平台链接，或要求分析博主、文章风格、热度、点赞、收藏、评论、爆款原因、选题方向时触发；根据平台和任务自动路由到小红书热门笔记、全域内容搜索、公众号爆款搜索、公众号赛道分析等分支 Skill。
+  创作者全域内容搜索总控 Skill。用户发送平台名+关键词、平台链接，或要求分析博主、文章风格、热度、点赞、收藏、评论、爆款原因、选题方向时触发；根据平台和任务自动路由到小红书热门笔记、全域内容搜索、公众号爆款搜索、公众号赛道分析、公众号定位/写作/头图封面、视频链接转写等分支 Skill。
 license: MIT
 triggers: ["creator buddy", "用户说「创作者全域内容搜索总控」时"]
 version: v3.0
@@ -23,7 +23,7 @@ version: v3.0
 
 ### 完整功能说明
 
-创作者全域内容搜索总控 Skill。用户发送平台名+关键词、平台链接，或要求分析博主、文章风格、热度、点赞、收藏、评论、爆款原因、选题方向时触发；根据平台和任务自动路由到小红书热门笔记、全域内容搜索、公众号爆款搜索、公众号赛道分析等分支 Skill。
+创作者全域内容搜索总控 Skill。用户发送平台名+关键词、平台链接，或要求分析博主、文章风格、热度、点赞、收藏、评论、爆款原因、选题方向时触发；根据平台和任务自动路由到小红书热门笔记、全域内容搜索、公众号爆款搜索、公众号赛道分析、公众号定位/写作/头图封面、视频链接转写等分支 Skill。
 
 # Creator Buddy 总控 Skill
 
@@ -182,6 +182,30 @@ python3 gzh-Skills/baokuan-article-analysis/scripts/daily_sector_trends.py \
 - `对比 Codex / Claude Code / AI编程`
 - 需要 HTML 报告、数据去重、标题模式和写作参考
 
+### 7. 视频链接字幕/逐字稿（2026-11-14 新增）
+
+使用 `video-Skills/space-video-transcript`。用户发来 YouTube/小宇宙/B站/抖音/小红书链接，要求「提取字幕」「逐字稿」「视频转文字」「下载视频」时触发。平台字幕优先，无字幕走 ASR 降级链（Groq → 本地 Whisper → agent-reach），输出 Markdown + SRT。
+
+```bash
+bash video-Skills/space-video-transcript/scripts/run.sh transcribe "<链接>" --output-dir "<输出目录>"
+```
+
+协议：先交字幕，再询问是否下载原视频（小宇宙下载原音频）；用户确认前不得下载完整视频。
+
+### 8. 公众号定位与账号装修（2026-11-14 新增）
+
+使用 `gzh-Skills/gzh-positioning`。触发词：「公众号定位」「简介怎么写」「功能介绍」「关注后回复」「欢迎语」「菜单怎么设计」「公众号装修」「新号怎么起步」。产出三件套：账号简介（4-120 字）/ 关注后自动回复（≤600 字）/ 自定义菜单（带字数校验）。先从已有文章反推定位（能读就别问），三件套全部从一句话定位派生。
+
+### 9. 公众号写作（2026-11-14 新增）
+
+长文（1500-4000 字）用 `gzh-Skills/gzh-longform-writer`：先诊断用户手上有什么（念头/素材/半稿/大纲/成稿），再路由六种写法之一。短文（≤1000 字纯文字）用 `gzh-Skills/gzh-short-post`。起标题交给 `baokuan-title-generator`，排版交给 `space-wechat-layout`。
+
+**文风档案规则**：用户说「用我的风格」时，优先读用户自己的文风档案（天龙 `skills/_meta/voice-profile.md`）；该档案未填写时**不要**套用本仓库自带的 `gzh-Skills/references/my-voice.md`——那是原作者「空格的键盘」的个人文风，冒用会写出不是用户的文章。
+
+### 10. 公众号头图封面 2.35:1（2026-11-14 新增）
+
+使用 `gzh-Skills/space-gzh-cover`。触发词：「做公众号封面」「做头图」「文章配首图」「2.35:1 封面」。关键事实：公众号封面会被裁两次——分享到朋友圈/聊天只抓正中央 1:1 方形（仅占宽度 42.6%），主标题核心词必须放中央安全区。出图后跑 `scripts/check_cover.py` 做安全区校验；出图后端按当前环境适配（该 skill 默认 Codex image_gen，后端不可用时如实告知）。
+
 ## 输出格式
 
 默认输出必须包含：
@@ -236,6 +260,8 @@ python3 gzh-Skills/baokuan-article-analysis/scripts/daily_sector_trends.py \
 - 抖音不是内置后端，必须依赖 `DOUYIN_COMMAND` 或未来 Agent Reach 支持。
 - Guaikei API 只作为小红书兜底，不替代 Agent Reach 的优先级。
 - 热度是传播信号，不等于内容质量，也不等于适合用户账号定位。
+- space-video-transcript 依赖平台字幕与 ASR 可用性，失败时如实报告，不编造逐字稿。
+- space-gzh-cover 的安全区校验是几何检查，能保证"分享后标题不被切"，保证不了美感；出图仍需人工把关。
 
 ---
 
