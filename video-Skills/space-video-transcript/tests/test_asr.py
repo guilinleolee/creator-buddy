@@ -12,6 +12,12 @@ sys.path.insert(0, str(SCRIPTS))
 import asr
 from formats import Segment
 
+UNIFIED_ENV = "DRAGON_UNIFIED_ASR_HOME"
+
+
+def env_without_unified():
+    return {key: value for key, value in os.environ.items() if key != UNIFIED_ENV}
+
 
 class AsrTests(unittest.TestCase):
     def test_available_and_choose_backends(self):
@@ -22,6 +28,7 @@ class AsrTests(unittest.TestCase):
 
         with (
             patch.dict(os.environ, {"GROQ_API_KEY": "secret"}),
+            patch("asr.unified_asr_available", return_value=False),
             patch("asr.shutil.which", side_effect=located),
         ):
             self.assertEqual(
@@ -34,6 +41,89 @@ class AsrTests(unittest.TestCase):
                 asr.choose_backend("auto")
             with self.assertRaisesRegex(RuntimeError, "当前不可用"):
                 asr.choose_backend("groq")
+
+    def test_unified_asr_home_env_priority(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            default = root / "default-unified-asr"
+            env_home = root / "env-unified-asr"
+            (env_home / "scripts").mkdir(parents=True)
+            (env_home / "scripts" / "transcribe.py").write_text(
+                "# helper", encoding="utf-8"
+            )
+
+            with (
+                patch.dict(os.environ, env_without_unified(), clear=True),
+                patch("asr.UNIFIED_ASR_DEFAULT_HOME", default),
+            ):
+                self.assertEqual(asr.unified_asr_home(), default)
+                self.assertFalse(asr.unified_asr_available())
+
+            with (
+                patch.dict(
+                    os.environ,
+                    {**env_without_unified(), UNIFIED_ENV: str(env_home)},
+                    clear=True,
+                ),
+                patch("asr.UNIFIED_ASR_DEFAULT_HOME", default),
+            ):
+                self.assertEqual(asr.unified_asr_home(), env_home)
+                self.assertTrue(asr.unified_asr_available())
+
+            with (
+                patch.dict(os.environ, {**env_without_unified(), UNIFIED_ENV: "  "}, clear=True),
+                patch("asr.UNIFIED_ASR_DEFAULT_HOME", default),
+            ):
+                self.assertEqual(asr.unified_asr_home(), default)
+
+    def test_available_backends_unified_fw_ordering(self):
+        def located(name):
+            return (
+                f"/bin/{name}" if name in {"curl", "whisper", "agent-reach"} else None
+            )
+
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "scripts").mkdir()
+            (root / "scripts" / "transcribe.py").write_text("# helper", encoding="utf-8")
+            env = env_without_unified()
+
+            with (
+                patch.dict(os.environ, env, clear=True),
+                patch("asr.UNIFIED_ASR_DEFAULT_HOME", root),
+                patch("asr.shutil.which", side_effect=located),
+            ):
+                self.assertEqual(
+                    asr.available_backends(),
+                    ("unified-fw", "whisper", "agent-reach"),
+                )
+                self.assertEqual(asr.choose_backend("auto"), "unified-fw")
+
+            with (
+                patch.dict(
+                    os.environ,
+                    {**env, "GROQ_API_KEY": "secret", UNIFIED_ENV: str(root)},
+                    clear=True,
+                ),
+                patch("asr.shutil.which", side_effect=located),
+            ):
+                self.assertEqual(
+                    asr.available_backends(),
+                    ("groq", "unified-fw", "whisper", "agent-reach"),
+                )
+                self.assertEqual(asr.choose_backend("auto"), "groq")
+                self.assertEqual(asr.choose_backend("unified-fw"), "unified-fw")
+
+            with (
+                patch.dict(os.environ, {**env, "GROQ_API_KEY": "secret"}, clear=True),
+                patch("asr.UNIFIED_ASR_DEFAULT_HOME", root / "missing"),
+                patch("asr.shutil.which", side_effect=located),
+            ):
+                self.assertEqual(
+                    asr.available_backends(),
+                    ("groq", "whisper", "agent-reach"),
+                )
+                self.assertEqual(asr.choose_backend("auto"), "groq")
 
     @patch("asr.subprocess.run")
     def test_media_duration(self, run):
@@ -120,6 +210,56 @@ class AsrTests(unittest.TestCase):
                     (Segment(0, 5, "逐字稿"),),
                 )
 
+    def test_unified_transcription_json_text_fallback_and_failure(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "scripts").mkdir()
+            helper = root / "scripts" / "transcribe.py"
+            helper.write_text("# helper", encoding="utf-8")
+            commands: list[list[str]] = []
+
+            def json_run(command, **_kwargs):
+                commands.append(command)
+                (root / "transcript.json").write_text(
+                    json.dumps(
+                        {"segments": [{"start": 0, "end": 2.5, "text": "你好"}]}
+                    ),
+                    encoding="utf-8",
+                )
+                return Mock(returncode=0, stderr="")
+
+            with patch.dict(
+                os.environ,
+                {**env_without_unified(), UNIFIED_ENV: str(root)},
+                clear=True,
+            ):
+                with patch("asr.subprocess.run", side_effect=json_run):
+                    self.assertEqual(
+                        asr.transcribe_unified(Path("audio.mp3"), root),
+                        (Segment(0, 2.5, "你好"),),
+                    )
+                command = commands[0]
+                self.assertEqual(
+                    command,
+                    [sys.executable, str(helper), "audio.mp3", "--output-dir", str(root)],
+                )
+
+                (root / "transcript.json").unlink()
+                (root / "text.txt").write_text("逐字稿\n", encoding="utf-8")
+                with patch("asr.subprocess.run", return_value=Mock(returncode=0, stderr="")):
+                    with patch("asr.media_duration", return_value=5):
+                        self.assertEqual(
+                            asr.transcribe_unified(Path("audio.mp3"), root),
+                            (Segment(0, 5, "逐字稿"),),
+                        )
+
+                with patch(
+                    "asr.subprocess.run",
+                    return_value=Mock(returncode=3, stderr="依赖缺失"),
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "统一 ASR 转录失败"):
+                        asr.transcribe_unified(Path("audio.mp3"), root)
+
     def test_transcribe_dispatch(self):
         expected = (Segment(0, 1, "ok"),)
         with (
@@ -127,6 +267,13 @@ class AsrTests(unittest.TestCase):
             patch("asr.transcribe_groq", return_value=expected),
         ):
             self.assertEqual(asr.transcribe(Path("a"), Path("b")), ("groq", expected))
+        with (
+            patch("asr.choose_backend", return_value="unified-fw"),
+            patch("asr.transcribe_unified", return_value=expected),
+        ):
+            self.assertEqual(
+                asr.transcribe(Path("a"), Path("b")), ("unified-fw", expected)
+            )
 
 
 if __name__ == "__main__":

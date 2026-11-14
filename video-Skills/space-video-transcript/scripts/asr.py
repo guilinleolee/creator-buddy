@@ -6,9 +6,24 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from formats import Segment, clean_text
+
+UNIFIED_ASR_ENV = "DRAGON_UNIFIED_ASR_HOME"
+UNIFIED_ASR_DEFAULT_HOME = Path.home() / ".agents" / "skills" / "dragon__unified-asr"
+
+
+def unified_asr_home() -> Path:
+    """统一 ASR helper 根目录：env DRAGON_UNIFIED_ASR_HOME 优先，否则默认技能路径。"""
+    override = os.environ.get(UNIFIED_ASR_ENV, "").strip()
+    return Path(override) if override else UNIFIED_ASR_DEFAULT_HOME
+
+
+def unified_asr_available() -> bool:
+    """True 当统一 ASR helper 提供 scripts/transcribe.py 入口。"""
+    return (unified_asr_home() / "scripts" / "transcribe.py").is_file()
 
 
 def media_duration(path: Path) -> float:
@@ -37,6 +52,8 @@ def available_backends() -> tuple[str, ...]:
     found: list[str] = []
     if os.environ.get("GROQ_API_KEY") and shutil.which("curl"):
         found.append("groq")
+    if unified_asr_available():
+        found.append("unified-fw")
     if shutil.which("whisper"):
         found.append("whisper")
     if shutil.which("agent-reach"):
@@ -54,7 +71,9 @@ def choose_backend(requested: str) -> str:
         return requested
     if not available:
         raise RuntimeError(
-            "没有可用 ASR。请配置 GROQ_API_KEY、安装 openai-whisper，或配置 agent-reach"
+            "没有可用 ASR。请配置 GROQ_API_KEY、安装统一 ASR（unified-asr 技能，"
+            "helper 路径可用 DRAGON_UNIFIED_ASR_HOME 指定）、安装 openai-whisper，"
+            "或配置 agent-reach"
         )
     return available[0]
 
@@ -180,6 +199,48 @@ def transcribe_whisper(audio: Path, work_dir: Path) -> tuple[Segment, ...]:
     )
 
 
+def transcribe_unified(audio: Path, work_dir: Path) -> tuple[Segment, ...]:
+    """调用 unified-asr 技能的本地 helper（faster-whisper，CUDA 自动检测，带转写缓存）。"""
+    helper = unified_asr_home() / "scripts" / "transcribe.py"
+    if not helper.is_file():
+        raise RuntimeError(f"统一 ASR helper 不存在：{helper}")
+    result = subprocess.run(
+        [sys.executable, str(helper), str(audio), "--output-dir", str(work_dir)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=7200,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"统一 ASR 转录失败：{result.stderr[-500:]}")
+    segments: list[Segment] = []
+    payload_file = work_dir / "transcript.json"
+    if payload_file.exists():
+        try:
+            payload = json.loads(payload_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            payload = None
+        raw = payload.get("segments") if isinstance(payload, dict) else payload
+        if isinstance(raw, list):
+            segments = [
+                Segment(
+                    float(item["start"]),
+                    float(item["end"]),
+                    clean_text(str(item.get("text", ""))),
+                )
+                for item in raw
+                if isinstance(item, dict) and clean_text(str(item.get("text", "")))
+            ]
+    if not segments:
+        text_file = work_dir / "text.txt"
+        if not text_file.exists():
+            raise RuntimeError("统一 ASR 转录失败：未产出 transcript.json 或 text.txt")
+        text = clean_text(text_file.read_text(encoding="utf-8", errors="replace"))
+        if text:
+            segments = [Segment(0, max(1.0, media_duration(audio)), text)]
+    return tuple(segments)
+
+
 def transcribe_agent_reach(audio: Path, work_dir: Path) -> tuple[Segment, ...]:
     output = work_dir / "agent-reach-transcript.txt"
     result = subprocess.run(
@@ -201,6 +262,7 @@ def transcribe(
     backend = choose_backend(requested)
     handlers = {
         "groq": transcribe_groq,
+        "unified-fw": transcribe_unified,
         "whisper": transcribe_whisper,
         "agent-reach": transcribe_agent_reach,
     }

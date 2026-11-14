@@ -40,7 +40,9 @@ bash "$SVT_HOME/scripts/run.sh" transcribe \
   "<URL>" --output-dir "<输出目录>"
 ```
 
-默认输出目录为当前目录下的 `video-transcripts/`。脚本优先获取平台已有字幕；没有字幕时自动抽取音频并按 `Groq → 本地 Whisper → agent-reach` 的顺序选择 ASR。
+默认输出目录为当前目录下的 `video-transcripts/`。脚本优先获取平台已有字幕；没有字幕时自动抽取音频并按 `Groq → unified-fw → 本地 Whisper → agent-reach` 的顺序选择 ASR。
+
+`unified-fw` 即统一 ASR 技能（`dragon__unified-asr`）：本地免费、faster-whisper、CUDA 自动检测、自带转写缓存；依赖由该技能的 `install.py` 安装。helper 根目录默认 `~/.agents/skills/dragon__unified-asr`，可用环境变量 `DRAGON_UNIFIED_ASR_HOME` 覆盖。
 
 4. 读取脚本最后一行 `SPACE_VIDEO_TRANSCRIPT_RESULT=...`：
    - 向用户展示字幕文件路径、来源平台、采用的平台字幕或 ASR。
@@ -74,7 +76,7 @@ bash "$SVT_HOME/scripts/run.sh" download \
 - YouTube/B站无字幕：自动走 ASR，不要直接结束。
 - 抖音/小红书抓取失败：提示用户先在 Chrome 打开或登录对应平台，再经允许使用浏览器登录态重试。
 - 小宇宙只接受 `/episode/` 单集页；节目主页要求用户改发单集链接。
-- 没有可用 ASR：说明可选方案——配置 `GROQ_API_KEY`、安装 `openai-whisper`，或配置 `agent-reach transcribe`。
+- 没有可用 ASR：说明可选方案——配置 `GROQ_API_KEY`、运行统一 ASR 技能的 `install.py` 启用 `unified-fw`（路径可用 `DRAGON_UNIFIED_ASR_HOME` 指定）、安装 `openai-whisper`，或配置 `agent-reach transcribe`。
 - 不支持 DRM、付费或无权访问的内容，不绕过验证码、权限校验和平台限制。
 
 平台差异和依赖说明见 [references/platforms.md](references/platforms.md)。

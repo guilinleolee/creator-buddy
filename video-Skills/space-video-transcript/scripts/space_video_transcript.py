@@ -197,7 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
     extract.add_argument("--subtitle-languages", default="zh.*,zh-Hans,zh-CN,zh,en.*")
     extract.add_argument(
         "--asr-backend",
-        choices=("auto", "groq", "whisper", "agent-reach"),
+        choices=("auto", "groq", "unified-fw", "whisper", "agent-reach"),
         default="auto",
     )
     extract.add_argument("--force-asr", action="store_true")

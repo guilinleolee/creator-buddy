@@ -28,10 +28,11 @@ python3 -m pip install youtube-transcript-api
 脚本的 `auto` 顺序：
 
 1. 存在 `GROQ_API_KEY`：调用 Groq Whisper，适合现有小宇宙工作流。
-2. 存在 `whisper` 命令：使用本地 OpenAI Whisper。
-3. 存在 `agent-reach`：调用其 `transcribe` 路由。
+2. 存在统一 ASR helper（`dragon__unified-asr` 技能的 `scripts/transcribe.py`）：使用 `unified-fw`——本地免费、faster-whisper、CUDA 自动检测、带转写缓存；依赖由该技能的 `install.py` 安装。helper 根目录默认 `~/.agents/skills/dragon__unified-asr`，可用环境变量 `DRAGON_UNIFIED_ASR_HOME` 覆盖。
+3. 存在 `whisper` 命令：使用本地 OpenAI Whisper。
+4. 存在 `agent-reach`：调用其 `transcribe` 路由。
 
-可用 `--asr-backend groq|whisper|agent-reach` 强制指定。
+可用 `--asr-backend groq|unified-fw|whisper|agent-reach` 强制指定。
 
 ## 浏览器登录态
 
